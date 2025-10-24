@@ -1,117 +1,104 @@
-# Project Requirements Document: codeguide-starter
-
----
+# Project Requirements Document (PRD)
 
 ## 1. Project Overview
 
-The **codeguide-starter** project is a boilerplate web application that provides a ready-made foundation for any web project requiring secure user authentication and a post-login dashboard. It sets up the common building blocks—sign-up and sign-in pages, API routes to handle registration and login, and a simple dashboard interface driven by static data. By delivering this skeleton, it accelerates development time and ensures best practices are in place from day one.
+**Paragraph 1:**
+The **Marketplace Hub Manager** is a full-stack starter template designed to serve as the foundation for a centralized hub that lets store managers handle multiple e-commerce channels (Shopee, TikTok Shop, Tokopedia, Cults3D) and custom websites (e.g., motekarfpv.com, r3dfpv.com) from one responsive web app. It offers built-in user authentication, a protected dashboard, pre-built UI components for data tables and charts, a PostgreSQL database via Drizzle ORM, and light/dark theming—everything you need to start integrating external marketplaces and custom business logic.
 
-This starter kit is being built to solve the friction developers face when setting up repeated common tasks: credential handling, session management, page routing, and theming. Key objectives include: 1) delivering a fully working authentication flow (registration & login), 2) providing a gated dashboard area upon successful login, 3) establishing a clear, maintainable project structure using Next.js and TypeScript, and 4) demonstrating a clean theming approach with global and section-specific CSS. Success is measured by having an end-to-end login journey in under 200 lines of code and zero runtime type errors.
+**Paragraph 2:**
+This template is being built to solve the common pain point of juggling separate interfaces for each online store. By unifying product listings, orders, inventory, and analytics into a single interface, it helps e-commerce teams save time, reduce errors, and make faster decisions. Key objectives for success include: secure, role-based user access; a modular codebase that’s easy to extend with new marketplace integrations; fast data synchronization; and a consistent, responsive UI on desktop and mobile.
 
 ---
 
 ## 2. In-Scope vs. Out-of-Scope
 
-### In-Scope (Version 1)
-- User registration (sign-up) form with validation
-- User login (sign-in) form with validation
-- Next.js API routes under `/api/auth/route.ts` handling:
-  - Credential validation
-  - Password hashing (e.g., bcrypt)
-  - Session creation or JWT issuance
-- Protected dashboard pages under `/dashboard`:
-  - `layout.tsx` wrapping dashboard content
-  - `page.tsx` rendering static data from `data.json`
-- Global application layout in `/app/layout.tsx`
-- Basic styling via `globals.css` and `dashboard/theme.css`
-- TypeScript strict mode enabled
+### In-Scope (Version 1.0)
+- User sign-up and sign-in flows (better-auth)
+- Protected dashboard area (`/app/dashboard/`) with layout and routing
+- Core UI components (`shadcn/ui`) for tables, forms, dialogs, charts
+- PostgreSQL integration via Drizzle ORM for users, stores, platforms, products, orders, credentials
+- Light/dark theme toggling (`next-themes`)
+- Boilerplate for Next.js API routes under `/app/api/`
+- Docker and `docker-compose` setup for local development and testing
+- Basic data-sync button (e.g., “Sync Products”) that calls a placeholder API route
 
-### Out-of-Scope (Later Phases)
-- Integration with a real database (PostgreSQL, MongoDB, etc.)
-- Advanced authentication flows (password reset, email verification, MFA)
-- Role-based access control (RBAC)
-- Multi-tenant or white-label theming
-- Unit, integration, or end-to-end testing suites
-- CI/CD pipeline and production deployment scripts
+### Out-of-Scope (Planned for Later Phases)
+- Full implementation of each marketplace integration module (Shopee, TikTok, etc.)
+- Scheduled background jobs or cron-style syncing (only scaffolding provided)
+- Advanced analytics dashboards (ML-driven insights)
+- Payment gateway integration
+- Native mobile apps or desktop clients
+- Chatbots or AI-powered support features
+- Multi-tenant or white-label capabilities
 
 ---
 
 ## 3. User Flow
 
-A new visitor lands on the root URL and sees a welcome page with options to **Sign Up** or **Sign In**. If they choose Sign Up, they fill in their email, password, and hit “Create Account.” The form submits to `/api/auth/route.ts`, which hashes the password, creates a new user session or token, and redirects them to the dashboard. If any input is invalid, an inline error message explains the issue (e.g., “Password too short”).
+**Paragraph 1:**
+A new user lands on the public homepage and clicks **Sign Up**. They fill in their email and password, submit the form, and get logged in automatically. After authentication, they arrive at the **Dashboard**. The left sidebar shows navigation links: **Overview**, **Products**, **Orders**, **Analytics**, and **Settings**. The main panel starts with a high-level overview card (total products, total orders, recent activity).
 
-Once authenticated, the user is taken to the `/dashboard` route. Here they see a sidebar or header defined by `dashboard/layout.tsx`, and the main panel pulls in static data from `data.json`. They can log out (if that control is present), but otherwise their entire session is managed by server-side cookies or tokens. Returning users go directly to Sign In, submit credentials, and upon success they land back on `/dashboard`. Any unauthorized access to `/dashboard` redirects back to Sign In.
+**Paragraph 2:**
+In **Settings**, the user clicks **Add Store**, selects a platform (e.g., Shopee), and enters API credentials. Back in **Products**, they see an empty table with a **Sync Products** button. Clicking it triggers a call to `/api/shopee/products`, which fetches data, normalizes it, and stores it in PostgreSQL. The table updates to show product names, SKUs, stock levels, and source platform. The user can filter, sort, or export the list. They browse to **Orders** to view recent orders, then toggle the theme switch in the navbar before logging out.
 
 ---
 
 ## 4. Core Features
 
-- **Sign-Up Page (`/app/sign-up/page.tsx`)**: Form fields for email & password, client-side validation, POST to `/api/auth`.
-- **Sign-In Page (`/app/sign-in/page.tsx`)**: Form fields for email & password, client-side validation, POST to `/api/auth`.
-- **Authentication API (`/app/api/auth/route.ts`)**: Handles both registration and login based on HTTP method, integrates password hashing (bcrypt) and session or JWT logic.
-- **Global Layout (`/app/layout.tsx` + `globals.css`)**: Shared header, footer, and CSS resets across all pages.
-- **Dashboard Layout (`/app/dashboard/layout.tsx` + `dashboard/theme.css`)**: Sidebar or top nav for authenticated flows, section-specific styling.
-- **Dashboard Page (`/app/dashboard/page.tsx`)**: Reads `data.json`, renders it as cards or tables.
-- **Static Data Source (`/app/dashboard/data.json`)**: Example dataset to demo dynamic rendering.
-- **TypeScript Configuration**: `tsconfig.json` with strict mode and path aliases (if any).
+- **Authentication & Authorization**: Full sign-up/sign-in, session management, protected routes, role-based access control
+- **Dashboard Layout**: Sidebar navigation, main content area, overview cards, breadcrumb support
+- **UI Components**: Data tables (sorting/filtering/pagination), forms, dialogs, charts—all via `shadcn/ui`
+- **Database Schema**: Entities for users, stores, platforms, products, orders, and secure API credentials, managed by Drizzle ORM
+- **API Routes**: Next.js API endpoints as facades for external integrations (e.g., `/api/shopee/*`, `/api/cults3d/*`)
+- **Integration Modules** (scaffold): `lib/shopee-api.ts`, `lib/tiktok-api.ts`, etc., each handling auth, rate limiting, data fetching, and normalization
+- **Data Synchronization**: On-demand sync actions plus scaffolding for scheduled tasks
+- **Theming**: Light, dark, or system theme via `next-themes`
+- **Containerization**: Docker images and `docker-compose` for app and database
 
 ---
 
 ## 5. Tech Stack & Tools
 
-- **Framework**: Next.js (App Router) for file-based routing, SSR/SSG, and API routes.
-- **Language**: TypeScript for type safety.
-- **UI Library**: React 18 for component-based UI.
-- **Styling**: Plain CSS via `globals.css` (global reset) and `theme.css` (sectional styling). Can easily migrate to CSS Modules or Tailwind in the future.
-- **Backend**: Node.js runtime provided by Next.js API routes.
-- **Password Hashing**: bcrypt (npm package).
-- **Session/JWT**: NextAuth.js or custom JWT logic (to be decided in implementation).
-- **IDE & Dev Tools**: VS Code with ESLint, Prettier extensions. Optionally, Cursor.ai for AI-assisted coding.
+- **Frontend & Framework**: Next.js 15 (App Router) with React 18 and TypeScript
+- **Styling & UI**: Tailwind CSS, `shadcn/ui`, `next-themes` for theming
+- **Authentication**: `better-auth` library for secure sign-up/sign-in flows
+- **State Management**: (Suggested) TanStack Query (React Query) for client-side data fetching and caching
+- **Backend & ORM**: Next.js API Routes + Drizzle ORM, PostgreSQL
+- **Containerization**: Docker, docker-compose
+- **Testing** (recommended): Jest for unit tests, React Testing Library for components, Playwright/Cypress for E2E
+- **IDE & Plugins**: VS Code with Docker, TypeScript, Tailwind CSS, and Drizzle ORM extensions
 
 ---
 
 ## 6. Non-Functional Requirements
 
-- **Performance**: Initial page load under 200 ms on a standard broadband connection. API responses under 300 ms.
-- **Security**:
-  - HTTPS only in production.
-  - Proper CORS, CSRF protection for API routes.
-  - Secure password storage (bcrypt with salt).
-  - No credentials or secrets checked into version control.
-- **Scalability**: Structure must support adding database integration, caching layers, and advanced auth flows without rewiring core app.
-- **Usability**: Forms should give real-time feedback on invalid input. Layout must be responsive (mobile > 320 px).
-- **Maintainability**: Code must adhere to TypeScript strict mode. Linting & formatting enforced by ESLint/Prettier.
+- **Performance**: Page loads under 300 ms; API responses under 200 ms (excluding external API latency)
+- **Security**: HTTPS everywhere, secure cookies, JWT/session tokens, password hashing, environment variable secrets, RBAC
+- **Compliance & Privacy**: GDPR-ready data handling; users can delete their account and data
+- **Usability**: Responsive design across mobile, tablet, desktop; keyboard navigation; clear error messages
+- **Accessibility**: WCAG AA standards—ARIA labels on interactive elements, sufficient color contrast
 
 ---
 
 ## 7. Constraints & Assumptions
 
-- **No Database**: Dashboard uses only `data.json`; real database integration is deferred.
-- **Node Version**: Requires Node.js >= 14.
-- **Next.js Version**: Built on Next.js 13+ App Router.
-- **Authentication**: Assumes availability of bcrypt or NextAuth.js at implementation time.
-- **Hosting**: Targets serverless or Node.js-capable hosting (e.g., Vercel, Netlify).
-- **Browser Support**: Modern evergreen browsers; no IE11 support required.
+- External marketplace APIs require valid API credentials and have rate limits
+- Drizzle ORM migrations must run before first launch
+- Docker Desktop or a compatible container runtime is available in dev/CI
+- Node.js 18+ environment for Next.js 15
+- Users have modern evergreen browsers (Chrome, Firefox, Edge, Safari)
+- No on-premise or legacy IE support required
 
 ---
 
 ## 8. Known Issues & Potential Pitfalls
 
-- **Static Data Limitation**: `data.json` is only for demo. A real API or database will be needed to avoid stale data.
-  *Mitigation*: Define a clear interface for data fetching so swapping to a live endpoint is trivial.
-
-- **Global CSS Conflicts**: Using global styles can lead to unintended overrides.
-  *Mitigation*: Plan to migrate to CSS Modules or utility-first CSS in Phase 2.
-
-- **API Route Ambiguity**: Single `/api/auth/route.ts` handling both sign-up and sign-in could get complex.
-  *Mitigation*: Clearly branch on HTTP method (`POST /register` vs. `POST /login`) or split into separate files.
-
-- **Lack of Testing**: No test suite means regressions can slip in.
-  *Mitigation*: Build a minimal Jest + React Testing Library setup in an early iteration.
-
-- **Error Handling Gaps**: Client and server must handle edge cases (network failures, malformed input).
-  *Mitigation*: Define a standard error response schema and show user-friendly messages.
+- **API Rate Limits**: Each marketplace enforces its own limits; implement throttling and retry logic in `lib/*-api.ts` modules.
+- **Inconsistent Data Schemas**: Different platforms return different fields—build a normalization layer to map external fields to your common schema.
+- **Error Handling**: Network failures or invalid credentials must surface clear, user-friendly messages and log full details to an external service (e.g., Sentry).
+- **Cron Jobs in Serverless**: If deployed on Vercel or similar, scheduled tasks may require a separate worker or third-party cron service.
+- **Schema Migrations**: Locking issues can occur during concurrent deployments—use Drizzle’s migration locks and CI checks to prevent conflicts.
 
 ---
 
-This PRD should serve as the single source of truth for the AI model or any developer generating the next set of technical documents: Tech Stack Doc, Frontend Guidelines, Backend Structure, App Flow, File Structure, and IDE Rules. It contains all functional and non-functional requirements with no ambiguity, enabling seamless downstream development.
+This PRD lays out all core requirements, scope boundaries, user journeys, and technical considerations for the Marketplace Hub Manager. It serves as the single source of truth for subsequent documents on tech stack details, frontend guidelines, backend architecture, app flow diagrams, file structure conventions, and CI/CD setup.
