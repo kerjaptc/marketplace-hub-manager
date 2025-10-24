@@ -1,116 +1,149 @@
-# Security Guidelines for codeguide-starter
+# Security Guidelines for marketplace-hub-manager
 
-This document defines mandatory security principles and implementation best practices tailored to the **codeguide-starter** repository. It aligns with Security-by-Design, Least Privilege, Defense-in-Depth, and other core security tenets. All sections reference specific areas of the codebase (e.g., `/app/api/auth/route.ts`, CSS files, environment configuration) to ensure practical guidance.
-
----
-
-## 1. Security by Design
-
-• Embed security from day one: review threat models whenever adding new features (e.g., new API routes, data fetching).
-• Apply “secure defaults” in Next.js configuration (`next.config.js`), enabling strict mode and disabling debug flags in production builds.
-• Maintain a security checklist in your PR template to confirm that each change has been reviewed against this guideline.
+**Version:** 1.0  
+**Date:** 2024-06-XX  
+**Audience:** Developers, DevOps, Security Engineers
 
 ---
 
-## 2. Authentication & Access Control
+## 1. Introduction
+These guidelines define mandatory security controls and best practices for the `marketplace-hub-manager` full-stack starter template. They ensure your multi-ecommerce hub is secure by design, protects sensitive data, and resists common web threats.
 
-### 2.1 Password Storage
-- Use **bcrypt** (or Argon2) with a per-user salt to hash passwords in `/app/api/auth/route.ts`.
-- Enforce a strong password policy on both client and server: minimum 12 characters, mixed case, numbers, and symbols.
-
-### 2.2 Session Management
-- Issue sessions via Secure, HttpOnly, SameSite=strict cookies. Do **not** expose tokens to JavaScript.
-- Implement absolute and idle timeouts. For example, invalidate sessions after 30 minutes of inactivity.
-- Protect against session fixation by regenerating session IDs after authentication.
-
-### 2.3 Brute-Force & Rate Limiting
-- Apply rate limiting at the API layer (e.g., using `express-rate-limit` or Next.js middleware) on `/api/auth` to throttle repeated login attempts.
-- Introduce exponential backoff or temporary lockout after N failed attempts.
-
-### 2.4 Role-Based Access Control (Future)
-- Define user roles in your database model (e.g., `role = 'user' | 'admin'`).
-- Enforce server-side authorization checks in every protected route (e.g., in `dashboard/layout.tsx` loader functions).
+## 2. Security Objectives
+- Enforce robust authentication and authorization for all users and API endpoints.  
+- Prevent data leakage, injection attacks, and cross-site scripting.  
+- Secure sensitive configuration, secrets, and credentials.  
+- Harden infrastructure and deployment pipelines.  
+- Maintain defense in depth with layered security controls.
 
 ---
 
-## 3. Input Handling & Processing
-
-### 3.1 Validate & Sanitize All Inputs
-- On **client** (`sign-up/page.tsx`, `sign-in/page.tsx`): perform basic format checks (email regex, password length).
-- On **server** (`/app/api/auth/route.ts`): re-validate inputs with a schema validator (e.g., `zod`, `Joi`).
-- Reject or sanitize any unexpected fields to prevent injection attacks.
-
-### 3.2 Prevent Injection
-- If you introduce a database later, always use parameterized queries or an ORM (e.g., Prisma) rather than string concatenation.
-- Avoid dynamic `eval()` or template rendering with unsanitized user input.
-
-### 3.3 Safe Redirects
-- When redirecting after login or logout, validate the target against an allow-list to prevent open redirects.
+## 3. Core Security Principles
+1. Security by Design: Integrate security from inception—do not postpone until after development.  
+2. Least Privilege: Grant only minimal permissions to users, services, and database roles.  
+3. Defense in Depth: Layer controls (network, application, data) so a single failure does not compromise the system.  
+4. Input Validation & Output Encoding: Treat all external input as untrusted; sanitize, validate, and encode at every boundary.  
+5. Fail Securely: On errors, do not leak sensitive details; close open sessions and sanitize logs.  
+6. Secure Defaults: Enable the most restrictive configuration by default.
 
 ---
 
-## 4. Data Protection & Privacy
+## 4. Authentication & Access Control
+### 4.1 User Authentication (better-auth)
+- Require HTTPS for all authentication flows.  
+- Enforce strong password policies: minimum length 12, mixed-case, digits, symbols.  
+- Hash passwords server-side with Argon2 or bcrypt, using unique salts per user.  
+- Implement account lockout/throttling after repeated failed logins to prevent brute-force.
 
-### 4.1 Encryption & Secrets
-- Enforce HTTPS/TLS 1.2+ for all front-end ↔ back-end communications.
-- Never commit secrets—use environment variables and a secrets manager (e.g., AWS Secrets Manager, Vault).
+### 4.2 JWT & Session Management
+- If using JWT, sign tokens with RS256 or HS256, never `none`.  
+- Set short lifespans (e.g., 15–60 min) and enforce refresh tokens stored securely (HttpOnly, Secure cookies).  
+- Rotate session identifiers on login and privilege changes to prevent fixation.  
+- Enforce idle and absolute timeouts; provide a secure logout endpoint.
 
-### 4.2 Sensitive Data Handling
-- Do ​not​ log raw passwords, tokens, or PII in server logs. Mask or redact any user identifiers.
-- If storing PII in `data.json` or a future database, classify it and apply data retention policies.
-
----
-
-## 5. API & Service Security
-
-### 5.1 HTTPS Enforcement
-- In production, redirect all HTTP traffic to HTTPS (e.g., via Vercel’s redirect rules or custom middleware).
-
-### 5.2 CORS
-- Configure `next.config.js` or API middleware to allow **only** your front-end origin (e.g., `https://your-domain.com`).
-
-### 5.3 API Versioning & Minimal Exposure
-- Version your API routes (e.g., `/api/v1/auth`) to handle future changes without breaking clients.
-- Return only necessary fields in JSON responses; avoid leaking internal server paths or stack traces.
+### 4.3 Role-Based Access Control (RBAC)
+- Define roles (e.g., `Admin`, `StoreManager`, `Viewer`) and map them to explicit permissions.  
+- Perform authorization checks server-side on every API and page route.  
+- Deny by default; only grant access upon explicit allow rules.
 
 ---
 
-## 6. Web Application Security Hygiene
+## 5. Input Handling & Output Encoding
+- **Server-Side Validation:** Use libraries like `zod` or `Joi` to validate API payloads and query parameters.  
+- **ORM Queries:** Use Drizzle ORM’s parameterized queries—avoid string concatenation for SQL.  
+- **XSS Mitigation:** Escape or encode all user-supplied content before rendering (e.g., React’s automatic escaping).  
+- **CSRF Protection:** Implement anti-CSRF tokens on all state-changing requests or use same-site cookies.  
+- **Open Redirects:** Validate redirect URLs against an allow-list.
 
-### 6.1 CSRF Protection
-- Use anti-CSRF tokens for any state-changing API calls. Integrate Next.js CSRF middleware or implement synchronizer tokens stored in cookies.
+---
 
-### 6.2 Security Headers
-- In `next.config.js` (or a custom server), add these headers:
-  - `Strict-Transport-Security: max-age=63072000; includeSubDomains; preload`
+## 6. Secure API Integration
+- **HTTPS Enforcement:** All calls to external marketplaces (Shopee, TikTok Shop, etc.) must use TLS 1.2+.  
+- **API Key Management:** Store API credentials in a secrets manager; do not commit to Git.  
+- **Rate Limiting & Backoff:** Implement exponential backoff and respect external API rate limits to avoid service disruptions.  
+- **Error Handling:** Catch and log integration errors; return generic messages to the client.
+
+---
+
+## 7. Database & Data Protection
+### 7.1 Schema & Permissions
+- Use separate database users: one for migrations (DDL) and one for application runtime (DML) with minimal privileges.  
+- Grant `SELECT`, `INSERT`, `UPDATE`, `DELETE` only on required tables.
+
+### 7.2 Encryption & Privacy
+- Enable encryption at rest (e.g., AWS RDS encryption).  
+- Enforce TLS for DB connections.  
+- Mask or redact PII in logs and user-facing views.  
+- Comply with GDPR/CCPA: provide data export and deletion workflows.
+
+---
+
+## 8. Secrets & Configuration Management
+- **Environment Variables:** Load sensitive values at runtime; never hardcode in source.  
+- **Secrets Store:** Leverage AWS Secrets Manager, Azure Key Vault, or HashiCorp Vault.  
+- **Access Controls:** Limit who and what can retrieve secrets via IAM policies.
+
+---
+
+## 9. Web Application Security Hygiene
+- **Security Headers:** Configure:
+  - `Strict-Transport-Security` (HSTS)
+  - `Content-Security-Policy` (restrict scripts, styles, frames)
+  - `X-Frame-Options: DENY` (prevent clickjacking)
   - `X-Content-Type-Options: nosniff`
-  - `X-Frame-Options: DENY`
   - `Referrer-Policy: no-referrer-when-downgrade`
-  - `Content-Security-Policy`: restrict script/style/src to self and trusted CDNs.
-
-### 6.3 Secure Cookies
-- Set `Secure`, `HttpOnly`, `SameSite=Strict` on all cookies. Avoid storing sensitive data in `localStorage`.
-
-### 6.4 Prevent XSS
-- Escape or encode all user-supplied data in React templates. Avoid `dangerouslySetInnerHTML` unless content is sanitized.
+- **Cookie Settings:** Set `Secure`, `HttpOnly`, `SameSite=Strict` on session/auth cookies.
+- **SRI:** Use Subresource Integrity when loading third-party assets.
+- **Disable Debug in Prod:** Ensure Next.js is built with `NODE_ENV=production` and logging redacted.
 
 ---
 
-## 7. Infrastructure & Configuration Management
-
-- Harden your hosting environment (e.g., Vercel/Netlify) by disabling unnecessary endpoints (GraphQL/GraphiQL playgrounds in production).
-- Rotate secrets and API keys regularly via your secrets manager.
-- Maintain minimal privileges: e.g., database accounts should only have read/write on required tables.
-- Keep Node.js, Next.js, and all system packages up to date.
-
----
-
-## 8. Dependency Management
-
-- Commit and maintain `package-lock.json` to guarantee reproducible builds.
-- Integrate a vulnerability scanner (e.g., GitHub Dependabot, Snyk) to monitor and alert on CVEs in dependencies.
-- Trim unused packages; each added library increases the attack surface.
+## 10. Infrastructure & Deployment Hardening
+- **Docker Security:**
+  - Use minimal base images (e.g., `node:18-alpine`).  
+  - Run processes as non-root user.  
+  - Regularly update images and dependencies.
+- **Network Security:**
+  - Limit exposed ports; use firewalls or security groups.  
+  - Place the database in a private subnet.
+- **TLS Config:** Use TLS 1.2+ with strong ciphers; disable SSLv3/TLS1.0.
 
 ---
 
-Adherence to these guidelines will ensure that **codeguide-starter** remains secure, maintainable, and resilient as it evolves. Regularly review and update this document to reflect new threats and best practices.
+## 11. Dependency Management
+- **Lockfiles:** Commit `package-lock.json` or `yarn.lock`.  
+- **Vulnerability Scanning:** Integrate SCA tools (e.g., Snyk, Dependabot, npm audit).  
+- **Minimal Footprint:** Only install required packages; avoid large, unmaintained libraries.
+
+---
+
+## 12. CI/CD Pipeline Security
+- **Pipeline Hardening:** Run linting, type checks, and tests in CI before merging.  
+- **Secret Protection:** Use encrypted secrets in GitHub Actions or your CI system.  
+- **Automated Deploys:** Limit deployment permissions; require PR reviews for production releases.
+
+---
+
+## 13. Logging, Monitoring & Incident Response
+- **Structured Logging:** Mask PII; log at appropriate levels (INFO, WARN, ERROR).  
+- **Centralized Monitoring:** Forward logs and metrics to a platform (e.g., Sentry, Datadog).  
+- **Alerts:** Configure alerts for excessive errors, latency spikes, or unauthorized access attempts.  
+- **Incident Plan:** Document roles, communication channels, and recovery steps for security incidents.
+
+---
+
+## 14. Testing & Validation
+- **Unit & Integration Tests:** Cover data-transformation functions and API routes, focusing on edge cases and error states.  
+- **E2E Tests:** Simulate user flows (login, store sync, order view) with Playwright or Cypress.  
+- **Security Tests:** Include tests for SQL injection, XSS, CSRF, and broken auth flows.
+
+---
+
+## 15. Ongoing Security Review
+- Conduct regular threat modeling and code reviews with security experts.  
+- Schedule periodic penetration tests.  
+- Update this guideline as the application evolves and new threats emerge.
+
+---
+
+**By following these guidelines, the `marketplace-hub-manager` codebase will maintain a strong security posture and protect both your users and your organization’s data assets.**

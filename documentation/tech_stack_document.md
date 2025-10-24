@@ -1,90 +1,119 @@
-# Tech Stack Document
+# marketplace-hub-manager Tech Stack Document  
 
-This document explains the key technologies chosen for the **codeguide-starter** project. It’s written in everyday language so anyone—technical or not—can understand why each tool was picked and how it supports the application.
+This document explains, in everyday language, the key technologies behind the marketplace-hub-manager starter template. It shows how each piece fits together to create a secure, responsive interface for managing multiple e-commerce stores in one place.  
 
-## 1. Frontend Technologies
-The frontend is everything the user sees and interacts with. For this project, we’ve used:
+## 1. Frontend Technologies  
+These are the tools that run in your browser and shape what you see and how you interact with it.  
 
-- **Next.js (App Router)**
-  - A React framework that makes page routing, server-side rendering, and API routes very simple.
-  - Enhances user experience by pre-rendering pages on the server or at build time, leading to faster initial load.
-- **React 18**
-  - The underlying library for building user interfaces with reusable components.
-  - Provides a smooth, interactive experience thanks to its virtual DOM and modern hooks.
-- **TypeScript**
-  - A superset of JavaScript that adds types (labels for data).
-  - Helps catch errors early during development and makes the code easier to maintain.
-- **CSS (globals.css & theme.css)**
-  - **globals.css** applies base styles (fonts, colors, resets) across the entire app.
-  - **dashboard/theme.css** defines the look and feel specific to the dashboard area.
-  - This separation keeps styles organized and avoids accidental style conflicts.
+- **Next.js (App Router)**  
+  A framework built on top of React that makes it easy to build pages, handle navigation, and set up server-side features. It keeps your app fast and helps you organize code.  
 
-By combining these tools, we have a clear structure (Next.js folders for pages and layouts), safer code (TypeScript), and flexible styling with vanilla CSS.
+- **React 18**  
+  A popular library for building user interfaces in small, reusable pieces called components. It helps us update the page smoothly when data changes.  
 
-## 2. Backend Technologies
-The backend handles data, user accounts, and the logic behind the scenes. Our choices here are:
+- **TypeScript**  
+  A version of JavaScript that adds simple type checks. It catches mistakes early, making the code more reliable—especially important when connecting to multiple external APIs.  
 
-- **Next.js API Routes**
-  - Allows us to write server-side code (`route.ts` files) alongside our frontend in the same project.
-  - Runs on Node.js, so we can handle requests like sign-up, sign-in, and data fetching in one place.
-- **Node.js Runtime**
-  - The JavaScript environment on the server that executes our API routes.
-- **bcrypt** (npm package)
-  - A library for hashing passwords securely before storing them.
-  - Ensures that even if someone got access to our data, raw passwords aren’t visible.
-- **(Optional) NextAuth.js or JWT**
-  - While this starter kit shows a custom authentication flow, it can easily integrate services like NextAuth.js for email-based login or JWT (JSON Web Tokens) for stateless sessions.
+- **Tailwind CSS**  
+  A utility-based styling system. Instead of writing long CSS files, you pick from small, descriptive classes (like `bg-blue-500` or `p-4`) to build responsive layouts quickly.  
 
-These components work together to receive user credentials, verify or store them securely, manage sessions or tokens, and deliver protected data back to the frontend.
+- **shadcn/ui**  
+  A collection of ready-made UI components (buttons, dialogs, tables, forms) that you can drop into your app. They follow best practices for accessibility and design consistency.  
 
-## 3. Infrastructure and Deployment
-Infrastructure covers where and how we host the app, as well as how changes get delivered:
+- **next-themes**  
+  A small library for easy light/dark (and system) theme switching. It lets users toggle between brightness modes without reloading the page.  
 
-- **Git & GitHub**
-  - Version control system (Git) and remote hosting (GitHub) keep track of all code changes and allow team collaboration.
-- **Vercel (or Netlify)**
-  - A popular hosting service optimized for Next.js, with one-click deployments and global content delivery.
-  - Automatically rebuilds and deploys the site whenever code is pushed to the main branch.
-- **GitHub Actions (CI/CD)**
-  - Automates tasks like linting (ESLint), formatting (Prettier), and running any tests you add.
-  - Ensures that only clean, tested code goes live.
+- **TanStack Query (React Query)**  
+  Manages data fetching and caching on the client side. It handles loading states, background updates, and keeps data fresh without extra wiring.  
 
-Together, these tools provide a reliable, scalable setup where every code change is tested and deployed quickly, with minimal manual work.
+## 2. Backend Technologies  
+These tools run on the server (or server-like environment) and handle data storage, authentication, and communication with external platforms.  
 
-## 4. Third-Party Integrations
-While this starter kit is minimal by design, it already includes or can easily add:
+- **Next.js API Routes**  
+  Built-in server endpoints within Next.js. They let you write functions that act like mini-servers, fetching data from external marketplaces and returning it to the frontend.  
 
-- **bcrypt**
-  - For secure password hashing (included as an npm dependency).
-- **NextAuth.js** (optional)
-  - A full-featured authentication library supporting email/password, OAuth, and more.
-- **Sentry or LogRocket** (optional)
-  - For real-time error tracking and performance monitoring in production.
+- **Node.js**  
+  The JavaScript runtime that powers Next.js on the server. It executes our code outside the browser.  
 
-These integrations help extend the app’s capabilities without building every feature from scratch.
+- **better-auth**  
+  A library that manages user sign-up, sign-in, and session handling. It ensures only authenticated users can access the dashboard.  
 
-## 5. Security and Performance Considerations
-We’ve baked in several measures to keep users safe and the app running smoothly:
+- **Drizzle ORM**  
+  A tool that connects our code to a SQL database in a safe, type-checked way. It translates JavaScript calls into queries and helps us define database tables in code.  
 
-Security:
-- Passwords are never stored in plain text—bcrypt hashes them with a random salt.
-- API routes can implement CSRF protection and input validation to block malicious requests.
-- Session tokens or cookies are marked secure and HttpOnly to prevent theft via JavaScript.
+- **PostgreSQL**  
+  A reliable relational database. It stores users, stores, products, orders, and credentials in structured tables, making data easy to query and update.  
 
-Performance:
-- Server-side rendering (SSR) and static site generation (SSG) in Next.js deliver pages faster.
-- Code splitting and lazy-loaded components ensure users only download what they need.
-- Global CSS and theme files are small and cached by the browser for quick repeat visits.
+- **Custom Integration Modules (`lib/`)**  
+  Each external marketplace (Shopee, TikTok Shop, Tokopedia, Cults3D) gets its own code file. These modules handle authentication, rate-limiting, and data normalization for each API.  
 
-These strategies work together to give users a fast, secure experience every time.
+- **Cron Jobs / Scheduled Tasks**  
+  A way to run periodic data syncs (for example, fetching new orders every few minutes). This can be done via services like Vercel Cron or a small standalone scheduler.  
 
-## 6. Conclusion and Overall Tech Stack Summary
-In building **codeguide-starter**, we chose technologies that:
+## 3. Infrastructure and Deployment  
+Here’s how we host, version, and automatically update the application so it stays reliable and easy to maintain.  
 
-- Align with modern web standards (Next.js, React, TypeScript).
-- Provide a clear, file-based project structure for rapid onboarding.
-- Offer built-in support for server-side rendering, API routes, and static assets.
-- Emphasize security through password hashing, session management, and safe defaults.
-- Enable easy scaling and future enhancements via modular code and optional integrations.
+- **Docker & docker-compose**  
+  Containerization tools that bundle the app and its database into isolated environments. With a single command, you get the same setup on any machine—avoiding “it works on my computer” problems.  
 
-This stack strikes a balance between simplicity for newcomers and flexibility for experienced teams. It accelerates development of a secure authentication flow and a polished dashboard, while leaving room to plug in databases, test suites, and advanced features as the project grows.
+- **Git & GitHub**  
+  Version control system and online repository. They track every code change, let multiple developers collaborate, and serve as the single source of truth.  
+
+- **GitHub Actions**  
+  A continuous integration and deployment (CI/CD) service. On every code push, it can run tests, check types, build the app, and even deploy it automatically.  
+
+- **Vercel (or similar platform)**  
+  A hosting service optimized for Next.js. It automatically deploys your latest code, provides HTTPS out of the box, and scales up as your traffic grows.  
+
+- **Optional Kubernetes or Cloud Provider**  
+  For teams who need more control, you can deploy Docker containers to Kubernetes clusters or cloud VMs.  
+
+## 4. Third-Party Integrations  
+These are external services that plug into your app to bring in data or add features you don’t have to build from scratch.  
+
+- **Shopee API**  
+  Fetch products, orders, and inventory details from Shopee stores.  
+
+- **TikTok Shop API**  
+  Sync listings and customer orders from TikTok Shop.  
+
+- **Tokopedia API**  
+  Manage product catalogs and order data from Tokopedia.  
+
+- **Cults3D API**  
+  Integrate custom 3D-print marketplace data into your unified dashboard.  
+
+- **Sentry or Logtail**  
+  Error-tracking and logging services. They capture runtime errors and performance metrics, so you can fix issues before they affect users.  
+
+## 5. Security and Performance Considerations  
+Measures we take to keep data safe and the app running smoothly for all users.  
+
+- **Authentication & Session Protection**  
+  All access goes through `better-auth`. Sessions are stored securely, and pages are guarded so only logged-in users can view sensitive data.  
+
+- **Environment Variables**  
+  API keys, database credentials, and secrets live in encrypted environment settings—not in the code.  
+
+- **Data Validation & Type Safety**  
+  TypeScript and Drizzle ORM ensure data from external APIs and user inputs match expected formats, reducing runtime errors.  
+
+- **HTTPS Everywhere**  
+  Deployments use secure HTTPS connections to protect data in transit.  
+
+- **Caching & Pagination**  
+  TanStack Query caches API responses. Combined with paginated data tables, this limits network load and keeps the UI snappy.  
+
+- **Container Isolation**  
+  Docker keeps dependencies separate, preventing one service’s issue from spilling over to another.  
+
+## 6. Conclusion and Overall Tech Stack Summary  
+The marketplace-hub-manager starter template brings together proven, modern tools to deliver a secure, scalable foundation for multi-store management:  
+
+- A React/Next.js front end styled with Tailwind CSS and enhanced by shadcn/ui components.  
+- A TypeScript-based backend using Next.js API routes, better-auth, Drizzle ORM, and PostgreSQL.  
+- Containerized development and automated CI/CD pipelines for consistent builds and easy deployment.  
+- Modular integration modules for each marketplace API, making it straightforward to add new platforms.  
+- Built-in security, performance optimizations, and testing recommendations to maintain a reliable user experience.  
+
+This carefully chosen stack aligns with the goal of a unified, responsive dashboard for managing Shopee, TikTok Shop, Tokopedia, Cults3D, and any custom websites—all from one place. By using these technologies, you gain type safety, rapid UI development, and a robust deployment pipeline, giving you more time to focus on business logic and growth.

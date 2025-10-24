@@ -1,179 +1,221 @@
 # Backend Structure Document
 
-This document outlines the backend architecture, hosting, and infrastructure for the **codeguide-starter** project. It uses plain language so anyone can understand how the backend is set up and how it supports the application.
-
 ## 1. Backend Architecture
 
-- **Framework and Design Pattern**
-  - We use **Next.js API Routes** to handle all server-side logic. These routes live alongside the frontend code in the same repository, making development and deployment simpler.
-  - The backend follows a **layered pattern**:
-    1. **API Layer**: Receives requests (login, registration, data fetch).  
-    2. **Service Layer**: Contains the core business logic (user validation, password hashing).  
-    3. **Data Access Layer**: Talks to the database via a simple ORM (e.g., Prisma or TypeORM).
+This section describes how the backend is organized, the frameworks and patterns in use, and how the design supports growing traffic, code maintenance, and efficient performance.
 
-- **Scalability**
-  - Stateless API routes can scale horizontally—new instances can spin up on demand.  
-  - We can add caching or a message queue (e.g., Redis or RabbitMQ) without changing the core code.
+### 1.1 Overall Architecture
 
-- **Maintainability**
-  - Code for each feature is grouped by route (authentication, dashboard).  
-  - A service layer separates complex logic from request handling.
+- **Framework**: Next.js 15 (App Router) serving both server-side API routes and React Server Components.  
+- **Language**: TypeScript throughout, ensuring type safety and early error detection.  
+- **Design Patterns**:
+  - **Modular Services**: Each external marketplace (Shopee, TikTok, Tokopedia, Cults3D) gets its own integration module under `lib/integrations/`.  
+  - **Layered Structure**: API routes in `app/api/` call service modules in `lib/`, which in turn interact with the ORM layer in `db/`.  
+  - **Component-Driven UI**: Backend APIs are designed to supply data in a shape that matches reusable UI components (`shadcn/ui`).
 
-- **Performance**
-  - Lightweight Node.js handlers keep response times low.  
-  - Future use of database connection pooling and Redis for caching repeated queries.
+### 1.2 Scalability, Maintainability & Performance
+
+- **Scalability**:
+  - Stateless API routes allow horizontal scaling (multiple server instances behind a load balancer).  
+  - Containerization (Docker) ensures each service runs reliably in any environment or orchestrator (Kubernetes, Docker Swarm).  
+- **Maintainability**:
+  - Clear separation of concerns (authentication, integrations, data access).  
+  - Type-safe ORM (Drizzle) keeps schema definitions and queries in one place, easing future changes.  
+- **Performance**:
+  - Server Components in Next.js reduce client-side bundle size.  
+  - Caching strategies (in-memory or external Redis) can be added to gateway layers for heavy API calls.  
+  - Database indexes on frequently queried columns (e.g., `external_id`, `store_id`).
 
 ## 2. Database Management
 
-- **Database Choice**
-  - We recommend **PostgreSQL** for structured data and reliable transactions.  
-  - In-memory caching can be added later with **Redis** for session tokens or frequently read data.
+This section covers our choice of data store, how data is organized, and best practices for managing it.
 
-- **Data Storage and Access**
-  - Use an ORM like **Prisma** or **TypeORM** to map JavaScript/TypeScript objects to database tables.
-  - Connection pooling ensures efficient use of database connections under load.
-  - Migrations track schema changes over time, keeping development, staging, and production in sync.
+### 2.1 Technology Stack
 
-- **Data Practices**
-  - Passwords are never stored in plain text—they are salted and hashed with **bcrypt** before saving.
-  - All outgoing data is typed and validated to prevent malformed records.
+- **Type**: Relational (SQL) database.  
+- **System**: PostgreSQL.  
+- **ORM**: Drizzle ORM for type-safe schema definitions, queries, and migrations.  
+- **Containerization**: PostgreSQL runs in its own Docker container during development.
+
+### 2.2 Data Structure & Access
+
+- **Normalized Tables**: Separate tables for users, platforms, stores, credentials, products, and orders.  
+- **Foreign Keys**: Enforce relationships (e.g., a product belongs to one store).  
+- **Migrations**: Drizzle’s CLI handles versioned schema changes, ensuring database evolves safely alongside code.  
+- **Connection Pooling**: Built into the ORM or via a pooler (PgBouncer) in production to handle many simultaneous requests.
 
 ## 3. Database Schema
 
-### Human-Readable Format
+Below is a human-readable description of the main tables, followed by SQL statements to create them in PostgreSQL.
 
-- **Users**
-  - **id**: Unique identifier  
-  - **email**: User’s email address (unique)  
-  - **password_hash**: Securely hashed password  
-  - **created_at**: Account creation timestamp
+### 3.1 Tables Overview (Human-Readable)
 
-- **Sessions**
-  - **id**: Unique session record  
-  - **user_id**: Links to a user  
-  - **token**: Random string for authentication  
-  - **expires_at**: When the token stops working  
-  - **created_at**: When the session was created
+- **users**: Stores application users (login credentials, profile info).  
+- **platforms**: Supported marketplaces (Shopee, TikTok Shop, etc.).  
+- **stores**: A user’s individual store on a given platform.  
+- **credentials**: Encrypted API keys and secrets for each store.  
+- **products**: Aggregated product listings, tied to a store and platform.  
+- **orders**: Aggregated order records from each store.
 
-- **DashboardItems** *(optional for dynamic data)*
-  - **id**: Unique record  
-  - **title**: Item title  
-  - **content**: Item details  
-  - **created_at**: When the item was added
+### 3.2 PostgreSQL Schema
 
-### SQL Schema (PostgreSQL)
 ```sql
--- Users table
-CREATE TABLE users (
+-- 1. Users
+eCREATE TABLE users (
   id SERIAL PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  name TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 2. Platforms
+eCREATE TABLE platforms (
+  id SERIAL PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  api_base_url TEXT NOT NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Sessions table
-CREATE TABLE sessions (
+-- 3. Stores
+eCREATE TABLE stores (
   id SERIAL PRIMARY KEY,
-  user_id INT REFERENCES users(id) ON DELETE CASCADE,
-  token VARCHAR(255) UNIQUE NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT now()
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  platform_id INTEGER REFERENCES platforms(id) ON DELETE RESTRICT,
+  external_store_id TEXT NOT NULL,
+  name TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (user_id, platform_id, external_store_id)
 );
 
--- Dashboard items table
-CREATE TABLE dashboard_items (
+-- 4. Credentials
+eCREATE TABLE credentials (
   id SERIAL PRIMARY KEY,
-  title TEXT NOT NULL,
-  content TEXT,
-  created_at TIMESTAMPTZ DEFAULT now()
+  store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+  api_key TEXT NOT NULL,
+  api_secret TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
-```  
+
+-- 5. Products
+eCREATE TABLE products (
+  id SERIAL PRIMARY KEY,
+  store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+  platform_id INTEGER REFERENCES platforms(id) ON DELETE RESTRICT,
+  external_product_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  price NUMERIC(12, 2),
+  inventory INTEGER,
+  metadata JSONB,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (store_id, external_product_id)
+);
+
+-- 6. Orders
+eCREATE TABLE orders (
+  id SERIAL PRIMARY KEY,
+  store_id INTEGER REFERENCES stores(id) ON DELETE CASCADE,
+  platform_id INTEGER REFERENCES platforms(id) ON DELETE RESTRICT,
+  external_order_id TEXT NOT NULL,
+  status TEXT,
+  total_amount NUMERIC(12, 2),
+  items JSONB,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (store_id, external_order_id)
+);
+``` 
 
 ## 4. API Design and Endpoints
 
-- **Approach**: We follow a **RESTful** style, grouping related endpoints under `/api` directories.
+We use a RESTful approach via Next.js API Routes. Endpoints are grouped by resource:
 
-- **Key Endpoints**
-  - `POST /api/auth/register`  
-    • Accepts `{ email, password }`  
-    • Creates a new user and issues a session token  
-  - `POST /api/auth/login`  
-    • Accepts `{ email, password }`  
-    • Verifies credentials and returns a session token  
-  - `POST /api/auth/logout`  
-    • Invalidates the session token on the server  
-  - `GET /api/dashboard/data`  
-    • Requires a valid session  
-    • Returns user-specific data or dashboard items  
+### 4.1 Authentication
 
-- **Communication**
-  - Frontend sends JSON requests; backend replies with JSON and appropriate HTTP status codes.  
-  - Protected routes check for a valid session token (in cookies or Authorization header).
+- **POST /api/auth/signup**: Create a new user.  
+- **POST /api/auth/login**: Verify credentials, return session token.  
+- **POST /api/auth/logout**: Invalidate the current session.
+
+### 4.2 Platforms & Stores
+
+- **GET /api/platforms**: List all supported platforms.  
+- **GET /api/stores**: Retrieve stores linked to the authenticated user.  
+- **POST /api/stores**: Add a new store (platform + external ID + credentials).  
+- **PUT /api/stores/:storeId**: Update store details or rotate credentials.  
+- **DELETE /api/stores/:storeId**: Remove a linked store.
+
+### 4.3 Data Sync & Management
+
+- **GET /api/stores/:storeId/products**: Fetch synced products from local database.  
+- **POST /api/stores/:storeId/products/sync**: Trigger on-demand sync from external API.  
+- **GET /api/stores/:storeId/orders**: List synced orders.  
+- **POST /api/stores/:storeId/orders/sync**: Trigger manual order sync.
+
+### 4.4 Integration-Specific Endpoints
+
+These act as facades to the external APIs and live under dedicated paths:  
+- **GET /api/shopee/products**  
+- **GET /api/tiktok/orders**  
+
+Each route calls its corresponding service module (`lib/integrations/shopee.ts`, etc.), normalizes data, writes to the database, and responds with the standard schema.
 
 ## 5. Hosting Solutions
 
-- **Cloud Provider**:  
-  - **Vercel** (recommended) offers seamless Next.js deployments, auto-scaling, and built-in CDN.  
-  - Alternatively, **Netlify** or any Node.js-capable host will work.
+### 5.1 Cloud Provider
 
-- **Benefits**
-  - **Reliability**: Global servers and failover across regions.  
-  - **Scalability**: Auto-scale serverless functions based on traffic.  
-  - **Cost-Effectiveness**: Pay-per-use model means low cost for small projects.
+- **Platform**: Vercel (recommended) for serverless Next.js deployment.  
+- **Database**: Managed PostgreSQL (AWS RDS, DigitalOcean Managed DB) for high availability and automated backups.
+
+### 5.2 Benefits
+
+- **Reliability**: Serverless functions scale on demand; managed DBs have automated failover.  
+- **Scalability**: Vercel auto-scales endpoints; read replicas can be added for the database.  
+- **Cost-Effectiveness**: Pay-per-use on Vercel; managed DB plans start small and grow as needed.
 
 ## 6. Infrastructure Components
 
-- **Load Balancer**
-  - Provided by the hosting platform—distributes API requests across function instances.
-
-- **CDN (Content Delivery Network)**
-  - Vercel’s global edge network caches static assets (CSS, JS, images) for faster page loads.
-
-- **Caching**
-  - **Redis** (optional) for session storage or caching dashboard queries to reduce database load.
-
-- **Object Storage**
-  - For file uploads or backups, integrate with AWS S3 or similar services.
-
-- **Message Queue**
-  - In future, use **RabbitMQ** or **Kafka** for background tasks (e.g., email notifications).
+- **Load Balancer**: Vercel’s edge network automatically balances incoming requests across global regions.  
+- **Caching**:
+  - **Edge Caching** for static assets and immutable API responses.  
+  - **Redis** (optional) for in-memory caching of frequent or costly API calls.  
+- **Content Delivery Network (CDN)**: Vercel (built-in) or Cloudflare for global asset distribution.  
+- **Cron Jobs / Schedulers**: Vercel Cron or a lightweight serverless function for periodic sync tasks.
 
 ## 7. Security Measures
 
-- **Authentication & Authorization**
-  - Passwords hashed with **bcrypt** and salted.  
-  - Session tokens stored in secure, HttpOnly cookies or Authorization headers.  
-  - Protected endpoints verify tokens before proceeding.
-
-- **Data Encryption**
-  - **HTTPS/TLS** encrypts data in transit.  
-  - Database connections use SSL to encrypt data between the app and the database.
-
-- **Input Validation**
-  - Every incoming request is validated (e.g., valid email format, password length) to prevent SQL injection or other attacks.
-
-- **Web Security Best Practices**
-  - Enable **CORS** policies to limit allowed origins.  
-  - Use **CSRF tokens** or same-site cookies to prevent cross-site requests.  
-  - Set secure headers with **Helmet** or a similar middleware.
+- **Authentication & Authorization**:
+  - `better-auth` handles sign-up/in, session management, and protected routes.  
+  - Role-based access control ensures only store owners and admins can manage data.  
+- **Transport Security**: HTTPS enforced on all endpoints (handled by Vercel or your TLS provider).  
+- **Data Encryption**:
+  - **In Transit**: TLS for network traffic.  
+  - **At Rest**: Database encryption (native to managed services) and encrypted storage of API credentials.  
+- **Input Validation & Sanitization**: Next.js middleware and JOI or Zod schemas validate request bodies.  
+- **Rate Limiting**: Throttle heavy endpoints to protect external APIs and limit abuse.
 
 ## 8. Monitoring and Maintenance
 
-- **Performance Monitoring**
-  - Integrate **Sentry** or **LogRocket** for real-time crash reporting and performance tracing.  
-  - Use Vercel’s built-in analytics to track request latencies and error rates.
-
-- **Logging**
-  - Structured logs (JSON) for all API requests and errors, shipped to a log management service like **Datadog** or **Logflare**.
-
-- **Health Checks**
-  - Define a `/health` endpoint that returns a 200 status if the service is up and the database is reachable.
-
-- **Maintenance Strategies**
-  - Automated migrations run on deploy to keep the database schema up to date.  
-  - Scheduled dependency audits and security scans (e.g., `npm audit`).
-  - Regular backups of the database (daily or weekly depending on usage).
+- **Error Tracking**: Sentry or Logtail captures runtime exceptions and stack traces.  
+- **Logging**: Structured logs (JSON) via Winston or Pino, shipped to a central log service.  
+- **Metrics**: Prometheus + Grafana or Vercel Analytics for request rates, latencies, error rates.  
+- **Alerts**: Set up alerts for high error rates, increased response times, or low database health.  
+- **Database Backups & Migrations**:
+  - Automated nightly snapshots from managed DB provider.  
+  - Schema migrations via Drizzle CLI, run during CI/CD or maintenance windows.
 
 ## 9. Conclusion and Overall Backend Summary
 
-The backend for **codeguide-starter** is built on Next.js API Routes and Node.js, paired with PostgreSQL for data and optional Redis for caching. It follows a clear layered architecture that keeps code easy to maintain and extend. With RESTful endpoints for authentication and data, secure practices like password hashing and HTTPS, and hosting on Vercel for scalability and global performance, this setup meets the project’s goals for a fast, secure, and developer-friendly foundation. Future enhancements—such as background job queues, advanced monitoring, or richer data models—can be added without disrupting the core structure.
+This setup combines a modern, modular design with proven cloud and open-source tools to deliver a robust backend for the `marketplace-hub-manager`:
+
+- **Scalable & Modular**: Stateless API routes, containerized services, and clear separation of integrations.  
+- **Maintainable & Type-Safe**: End-to-end TypeScript, Drizzle ORM, and versioned migrations ensure safe evolution.  
+- **Secure & Compliant**: Encrypted data, role-based access, and industry-standard auth practices.  
+- **Optimized for Performance**: CDN caching, optional Redis, and global edge distribution.  
+- **Observability & Reliability**: Comprehensive logging, monitoring, and alerting keep the system healthy.
+
+With this backend foundation, you can confidently build out your centralized e-commerce management interface, integrate additional marketplaces, and serve users with consistent performance and security.
